@@ -1,8 +1,11 @@
 import 'dart:async';
 
+// import 'package:audioplayers/audioplayers.dart';
 import 'package:english_words/english_words.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:just_audio/just_audio.dart';
 
 void main() {
   runApp(MyApp());
@@ -21,7 +24,13 @@ class MyApp extends StatelessWidget {
           useMaterial3: true,
           colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepOrange),
         ),
-        home: Chessboard(),
+        home: CupertinoPageScaffold(
+          navigationBar: CupertinoNavigationBar(
+            backgroundColor: CupertinoColors.systemGrey,
+            middle: Text('1-25'),
+          ),
+          child: Center(child: NumsClick()),
+        ),
       ),
     );
   }
@@ -31,36 +40,43 @@ class MyAppState extends ChangeNotifier {
   var current = WordPair.random();
 }
 
-class Chessboard extends StatefulWidget {
-  const Chessboard({Key? key}) : super(key: key);
+class NumsClick extends StatefulWidget {
+  const NumsClick({Key? key}) : super(key: key);
 
   @override
-  State<Chessboard> createState() => _ChessboardState();
+  State<NumsClick> createState() => _NumsClickState();
 }
 
-class _ChessboardState extends State<Chessboard> {
-  bool _isStarted = false;
+class _NumsClickState extends State<NumsClick> {
+  int currentNum = 0;
   Stopwatch _stopwatch = Stopwatch();
   Timer? _timer;
   List<int> numbers = List.generate(25, (index) => index + 1);
+  final player = AudioPlayer();
 
   @override
   void initState() {
+    player.setAsset("assets/audio/pick.mp3");
     super.initState();
     numbers.shuffle(); // 初始化时打乱数字顺序
-  }
-
-  void _startTimer() {
-    _stopwatch.start();
-    _timer = Timer.periodic(const Duration(milliseconds: 10), (timer) {
-      setState(() {}); // 更新 UI
-    });
   }
 
   void _stopTimer() {
     _stopwatch.stop();
     _timer?.cancel();
     _timer = null;
+  }
+
+  void _resetTimer() {
+    // _stopTimer(); // 停止当前计时器
+
+    _stopwatch.reset();
+
+    _stopwatch.start();
+
+    _timer = Timer.periodic(const Duration(milliseconds: 10), (timer) {
+      setState(() {}); // 更新 UI
+    });
   }
 
   String _formatTime(Duration duration) {
@@ -76,82 +92,73 @@ class _ChessboardState extends State<Chessboard> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('棋盘'),
-      ),
-      body: Flexible(
+    return Column(children: [
+      Padding(
+        padding: const EdgeInsets.all(16.0),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             ElevatedButton(
               onPressed: () {
                 setState(() {
-                  _isStarted = !_isStarted;
-                  if (_isStarted) {
-                    _startTimer();
-                  } else {
-                    _stopTimer();
-                  }
+                  currentNum = 0;
+                  _resetTimer();
+                  numbers.shuffle();
                 });
               },
-              child: Text(_isStarted ? '暂停' : '开始'),
+              child: Text('Start'),
             ),
             const SizedBox(height: 20),
-            Text('时间: ${_formatTime(_stopwatch.elapsed)}'),
+            Text(
+              _formatTime(_stopwatch.elapsed),
+              style: TextStyle(
+                fontFamily: 'Courier', // 或其他等宽字体名称
+              ),
+            ),
             const SizedBox(height: 20),
-            NumsClick()
+            // NumsClick()
           ],
         ),
       ),
-    );
-  }
-}
-
-class NumsClick extends StatefulWidget {
-  const NumsClick({Key? key}) : super(key: key);
-
-  @override
-  State<NumsClick> createState() => _NumsClickState();
-}
-
-class _NumsClickState extends State<NumsClick> {
-  List<int> numbers = List.generate(25, (index) => index + 1);
-
-  @override
-  void initState() {
-    super.initState();
-    numbers.shuffle(); // 初始化时打乱数字顺序
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return GridView.builder(
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 5,
-      ),
-      itemCount: 25,
-      itemBuilder: (BuildContext context, int index) {
-        return SizedBox.expand(
-          child: ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              shape: const RoundedRectangleBorder(
-                borderRadius: BorderRadius.zero,
+      Expanded(
+        child: AspectRatio(
+            aspectRatio: 1 / 1,
+            child: GridView.builder(
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 5,
               ),
-              padding: EdgeInsets.zero,
-              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-            ),
-            onPressed: () {
-              // 处理按钮点击事件
-              print("点击了数字 ${numbers[index]}");
-            },
-            child: Text(
-              "${numbers[index]}",
-              style: const TextStyle(fontSize: 24),
-            ),
-          ),
-        );
-      },
-    );
+              itemCount: 25,
+              itemBuilder: (BuildContext context, int index) {
+                return SizedBox.expand(
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      shape: const RoundedRectangleBorder(
+                        borderRadius: BorderRadius.zero,
+                      ),
+                      padding: EdgeInsets.zero,
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
+                    onPressed: () {
+                      // 处理按钮点击事件
+                      player.play();
+                      print("点击了数字 ${numbers[index]}");
+                      int clickedNum = numbers[index];
+                      if (clickedNum - currentNum == 1) {
+                        currentNum = clickedNum;
+                      }
+                      if (clickedNum == clickedNum && clickedNum == 25) {
+                        _stopTimer();
+                      }
+                    },
+                    child: Text(
+                      "${numbers[index]}",
+                      style: const TextStyle(fontSize: 24),
+                    ),
+                  ),
+                );
+              },
+            )),
+      ),
+    ]);
   }
 }
